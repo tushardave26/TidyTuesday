@@ -1,0 +1,116 @@
+---
+title: "Week15 R Notebook"
+output: html_notebook
+Description: This notebook produce results for Week15 dataset. For more details on the dataset please refer https://github.com/rfordatascience/tidytuesday/tree/master/data.
+---
+
+```{r install require library}
+install.packages("tidyverse")
+```
+
+```{r load require library}
+library(tidyverse)
+library(readxl)
+```
+
+```{r download the data from github repo}
+# url to the original data
+url <- "https://github.com/rfordatascience/tidytuesday/blob/master/data/week15_beers.xlsx"
+
+# generate the desination path with desitnation file
+dest_file <- file.path("data", "week15_beers.xlsx")
+
+# download the raw data file
+download.file(url = url, destfile = dest_file)
+```
+
+```{r prepare raw data for analysis}
+# read the beers data from raw data file
+beer_data <- read_excel(path = "../data/week15_beers.xlsx", col_names = TRUE, 
+                       trim_ws = TRUE, sheet = "beers")
+
+# read the breweries data from raw data file
+breweries_data <- read_excel(path = "../data/week15_beers.xlsx", col_names = TRUE, 
+                             trim_ws = TRUE, sheet = "breweries") %>%
+                  rename(brewery_id = id)
+
+# combine above both the datasets into one
+raw_data <- full_join(breweries_data, beer_data, by = "brewery_id") %>%
+            rename(brewery_name = name.x, beer_name = name.y) %>%
+            select(-count.x, -brewery_id, -count.y, -id) %>%
+            select(brewery_name:state, beer_name, everything()) %>%
+            arrange(state)
+
+# save the raw data as RDS object
+saveRDS(object = raw_data, file = "../results/rawData.rds")
+```
+
+```{r}
+# load the raw data RDS object
+raw_data <- readRDS(file = "../results/rawData.rds")
+
+# convert the categorical data columns to factors
+raw_data <- raw_data %>%
+            mutate_at(vars(brewery_name, city, state, style), funs(as.factor))
+```
+
+```{r generate state v/s number of breweries bar chart}
+#summarise the data according to State
+raw_data %>%
+  group_by(state) %>%
+  summarise(total_brewery = n()) %>%
+  ggplot(aes(x = state, y = total_brewery)) +
+  geom_bar(stat = "identity") +
+  xlab("State") +
+  ylab("# of breweries") +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, margin = margin(t = 2, r = 3, b = 2, l = 3, unit = "pt")))
+```
+
+```{r generate state v/s number of beer styles bar chart}
+#summarise the data according to State, Style and then count number styles produced by each state
+raw_data %>%
+  group_by(state, style) %>%
+  summarise(total_count = n()) %>%
+  group_by(state) %>%
+  summarise(total_style = n()) %>%
+  ggplot(aes(x = state, y = total_style)) +
+  geom_bar(stat = "identity") +
+  xlab("State") +
+  ylab("# of beer styles") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, margin = margin(t = 2, r = 3, b = 2, l = 3, unit = "pt")))
+```
+
+```{r generate state v/s beer volume bar chart}
+#summarise the data according to State, beer volume
+raw_data %>%
+  group_by(state, ounces) %>%
+  summarise(volume_count = n()) %>%
+  ggplot(aes(x = state, y = volume_count, fill = factor(ounces))) +
+  geom_bar(stat = "identity") +
+  labs(x = "State", y = "Count", fill = "Volume (oz)" ) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, margin = margin(t = 2, r = 7, b = 2, l = 7, unit = "pt")))
+```
+
+```{r generate state v/s max_abv chart}
+#summarise the data according to State
+raw_data %>%
+  group_by(state) %>%
+  summarise(max_abv = max(abv, na.rm = TRUE)) %>%
+  ggplot(aes(x = state, y = max_abv, size = max_abv)) +
+  geom_point() +
+  labs(x = "State", y = "max_abv") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, margin = margin(t = 2, r = 7, b = 2, l = 7, unit = "pt")))
+```
+
+```{r generate state v/s max_ibu chart}
+#summarise the data according to State, beer volume
+raw_data %>%
+  group_by(state) %>%
+  summarise(max_ibu = max(ibu, na.rm = TRUE)) %>%
+  ggplot(aes(x = state, y = max_ibu, size = max_ibu)) +
+  geom_point() +
+  labs(x = "State", y = "max_ibu") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, margin = margin(t = 2, r = 7, b = 2, l = 7, unit = "pt")))
+```
+
+
